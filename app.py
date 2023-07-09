@@ -71,6 +71,7 @@ def run_musicgen(prompt, custom_model_path = None, model_size='large', length=10
     # load model
 
     musicgen_model = musicgen.MusicGen.get_pretrained(model_size, device='cuda')
+    musicgen_model.set_generation_params(duration=length)
 
     if model_size != loaded_model_size or musicgen_model is None:
         if custom_model_path is not None:
@@ -79,7 +80,6 @@ def run_musicgen(prompt, custom_model_path = None, model_size='large', length=10
 
         print(f"loading {model_size} model")
 
-        musicgen_model.set_generation_params(duration=length)
         loaded_model_size = model_size
 
     # run model

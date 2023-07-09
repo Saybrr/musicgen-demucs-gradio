@@ -72,7 +72,7 @@ def run_musicgen(prompt, custom_model_path = None, model_size='large', length=10
     if model_size != loaded_model_size or musicgen_model is None:
         if custom_model_path is not None:
             print(f"loading custom model from {custom_model_path}")
-            musicgen_model = musicgen_model.lm.load_state_dict(torch.load('models/lm_final.pt'))
+            musicgen_model = musicgen.MusicGen.lm.load_state_dict(torch.load('models/lm_final.pt'))
         else:
             print(f"loading {model_size} model")
             musicgen_model = musicgen.MusicGen.get_pretrained(model_size, device='cuda')
@@ -172,7 +172,7 @@ with demo:
         with gr.Column():
             gr.Markdown("## MusicGen")
             musicgen_prompt = gr.Textbox(label="Musicgen Prompt")
-            custom_model_path = gr.Dropdown( choices=os.listdir('models'), label="path to Musicgen Model")
+            custom_model_path = gr.Dropdown( choices=[item for item in os.listdir('models') if item[-3:] == '.pt'], label="path to Musicgen Model")
             model_size = gr.Radio(["large", "medium", "small"], value="large", label="Model Size - does nothing when custom model is selected")
             # melody_audio = gr.Audio(type="numpy", label="Melody for conditioning", visible=False)
             gen_length = gr.Slider(2, 30, value=10, label="Generation Length (seconds)")

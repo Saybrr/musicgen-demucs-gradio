@@ -12,6 +12,7 @@ import datetime
 import os
 
 from audiocraft.models import musicgen
+import torch
 
 musicgen_model = None
 loaded_model_size = "N/A"
@@ -41,8 +42,8 @@ Write {n_prompts} prompts for the given topic in a similar style. be descriptive
     print(f"making prompts for {simple_prompt}")
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4" if use_gpt4 else "gpt-3.5-turbo", 
-            messages=message_history, 
+            model="gpt-4" if use_gpt4 else "gpt-3.5-turbo",
+            messages=message_history,
             temperature=1.0
         )
         out_prompts = response.choices[0]['message']['content'].strip()
@@ -57,18 +58,26 @@ Write {n_prompts} prompts for the given topic in a similar style. be descriptive
         print(f"Cannot parse output as python array: \n{out_prompts}\n{e}")
 
     return "\n".join(prompts)
-    
+
 
 # musicgen
-def run_musicgen(prompt, model_size='large', length=10, melody_audio=None):
+def run_musicgen(prompt, custom_model_path = None, model_size='large', length=10, melody_audio=None):
     global musicgen_model, loaded_model_size
 
+    # check for custom trained model
+    # NOTE: model size is not applicable here, custom trained models are trained on a specific size
+    # Size is only needed when pulling from Hugging Face
+
     # load model
-    if model_size != loaded_model_size:
-        print(f"loading {model_size} model")
-        musicgen_model = musicgen.MusicGen.get_pretrained(model_size, device='cuda')
-        musicgen_model.set_generation_params(duration=length)
-        loaded_model_size = model_size
+    if model_size != loaded_model_size or musicgen_model is None:
+        if custom_model_path is not None:
+            print(f"loading custom model from {custom_model_path}")
+            musicgen_model = musicgen_model.lm.load_state_dict(torch.load('models/lm_final.pt'))
+        else:
+            print(f"loading {model_size} model")
+            musicgen_model = musicgen.MusicGen.get_pretrained(model_size, device='cuda')
+            musicgen_model.set_generation_params(duration=length)
+            loaded_model_size = model_size
 
     # run model
     print(f"generating {prompt}")
@@ -84,7 +93,7 @@ def run_musicgen(prompt, model_size='large', length=10, melody_audio=None):
 
     if not os.path.exists('outputs'):
         os.makedirs('outputs')
-        
+
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     filename = f"outputs/{prompt.replace(' ', '_')}_{timestamp}.wav"
     sf.write(filename, output, 32000)
@@ -103,7 +112,7 @@ def run_demucs(audio, stem_type='drums'):
         sf.write(input_file.name, audio[1] / 32767.0, audio[0])
     elif isinstance(audio, str):
         input_file = audio
-    
+
     print(input_file.name)
 
     if not os.path.exists('outputs/separated/htdemucs'):
@@ -140,14 +149,14 @@ with demo:
             simple_prompt = gr.Textbox(label="Simple Prompt")
             with gr.Accordion(label="Example Prompts", open=False):
                 gr.Examples([
-                    "synthwave solo", 
-                    "epic staccato strings d minor 174bpm", 
-                    "music to mosh to", 
-                    "hyperpop elements starter pack", 
-                    "glitchy breakcore stuff", 
-                    "war drums", 
-                    "geese fucking up a guitar center", 
-                    "sad girl hours", 
+                    "synthwave solo",
+                    "epic staccato strings d minor 174bpm",
+                    "music to mosh to",
+                    "hyperpop elements starter pack",
+                    "glitchy breakcore stuff",
+                    "war drums",
+                    "geese fucking up a guitar center",
+                    "sad girl hours",
                     "lush organic pads",
                     "foley percussion loop",
                 ], simple_prompt, fn=mirror)
@@ -156,14 +165,15 @@ with demo:
             api_key_box = gr.Textbox(type="password", label="OpenAI API key")
             gpt4_checkbox = gr.Checkbox(label="Use GPT-4", value=True)
             prompts_button = gr.Button("Create Prompts")
-            
+
             prompts_list = gr.Textbox(label="Prompts List", show_copy_button=True, interactive=False)
-        
+
         # musicgen
         with gr.Column():
             gr.Markdown("## MusicGen")
             musicgen_prompt = gr.Textbox(label="Musicgen Prompt")
-            model_size = gr.Radio(["large", "medium", "small"], value="large", label="Model Size")
+            custom_model_path = gr.Dropdown( choices=os.listdir('models'), label="path to Musicgen Model")
+            model_size = gr.Radio(["large", "medium", "small"], value="large", label="Model Size - does nothing when custom model is selected")
             # melody_audio = gr.Audio(type="numpy", label="Melody for conditioning", visible=False)
             gen_length = gr.Slider(2, 30, value=10, label="Generation Length (seconds)")
             generate_button = gr.Button("Generate Audio")
@@ -184,10 +194,10 @@ with demo:
             split_uploaded_button = gr.Button("Or Split Uploaded Stems")
             stem_type = gr.Radio(["drums", "melody"], value="drums", label="Desired Stem")
             demucs_audio = gr.Audio(type="numpy", label="Demucs Output")
-        
+
 
     prompts_button.click(enhance_prompt, inputs=[simple_prompt, api_key_box, n_prompts, gpt4_checkbox], outputs=prompts_list)
-    generate_button.click(run_musicgen, inputs=[musicgen_prompt, model_size, gen_length], outputs=musicgen_audio)
+    generate_button.click(run_musicgen, inputs=[musicgen_prompt,custom_model_path,model_size , gen_length], outputs=musicgen_audio)
     split_musicgen_button.click(run_demucs, inputs=[musicgen_audio, stem_type], outputs=demucs_audio)
     split_uploaded_button.click(run_demucs, inputs=[demucs_in_audio, stem_type], outputs=demucs_audio)
 

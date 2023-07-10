@@ -69,18 +69,18 @@ def run_musicgen(prompt, custom_model_path = None, model_size='large', length=10
     # Size is only needed when pulling from Hugging Face
 
     # load model
+    if musicgen_model is None:
+        musicgen_model = musicgen.MusicGen.get_pretrained(model_size, device='cuda')
+        musicgen_model.set_generation_params(duration=length)
 
-    musicgen_model = musicgen.MusicGen.get_pretrained(model_size, device='cuda')
-    musicgen_model.set_generation_params(duration=length)
+    # if model_size != loaded_model_size or musicgen_model is None:
+    #     if custom_model_path is not None:
+    print(f"loading custom model from {custom_model_path}")
+    musicgen_model.lm.load_state_dict(torch.load('models/' + custom_model_path))
 
-    if model_size != loaded_model_size or musicgen_model is None:
-        if custom_model_path is not None:
-            print(f"loading custom model from {custom_model_path}")
-            musicgen_model.lm.load_state_dict(torch.load('models/' + custom_model_path))
+    print(f"loading {model_size} model")
 
-        print(f"loading {model_size} model")
-
-        loaded_model_size = model_size
+    loaded_model_size = model_size
 
     # run model
     print(f"generating {prompt}")

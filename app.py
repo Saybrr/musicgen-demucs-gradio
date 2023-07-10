@@ -70,6 +70,7 @@ def run_musicgen(prompt, custom_model_path = None, model_size='large', length=10
 
     # load model
     if musicgen_model is None:
+        print(f"loading {model_size} model")
         musicgen_model = musicgen.MusicGen.get_pretrained(model_size, device='cuda')
         musicgen_model.set_generation_params(duration=length)
 
@@ -78,7 +79,6 @@ def run_musicgen(prompt, custom_model_path = None, model_size='large', length=10
     print(f"loading custom model from {custom_model_path}")
     musicgen_model.lm.load_state_dict(torch.load('models/' + custom_model_path))
 
-    print(f"loading {model_size} model")
 
     loaded_model_size = model_size
 
@@ -98,7 +98,7 @@ def run_musicgen(prompt, custom_model_path = None, model_size='large', length=10
         os.makedirs('outputs')
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    filename = f"outputs/{prompt.replace(' ', '_')}_{timestamp}.wav"
+    filename = f"outputs/{prompt.replace(' ', '_')[:30]}_{timestamp}.wav"
     sf.write(filename, output, 32000)
     print(f"saved {filename}")
 
